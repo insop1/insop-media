@@ -1,0 +1,1 @@
+A playerctl wrapper daemon for waybar with more features than the MPRIS module. Instead of using ignored-players, we explicitly list our players into "players" into the config.json file. More to come.
