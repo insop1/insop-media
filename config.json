@@ -1,0 +1,19 @@
+{
+    "players": ["spotatui", "spotify"],
+    "scroll-text": false,
+    "images": true,  
+    "dynamic": [
+        "artist", "title"
+    ],
+    "special-commands": {
+        "play-pause": {
+            
+        },
+        "next": {
+
+        },
+        "previous": {
+
+        }
+    }
+}
