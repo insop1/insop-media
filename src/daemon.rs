@@ -3,10 +3,8 @@ use std::path::Path;
 use crate::config::Config;
 use std::process::{Command, Stdio};
 use std::io::{BufRead, BufReader};
-use crate::metadata::{Metadata};
-use crate::metadata;
+use crate::metadata::{self, Metadata};
 use std::fs;
-
 // playerctl -p spotify --follow metadata --format '{{playerName}}|=|{{status}}|=|{{artist}}|=|{{title}}|=|{{album}}|=|{{mpris:artUrl}}'
 
 pub fn run_event_loop(config: &Config, cache_dir: &Path) {
@@ -47,7 +45,8 @@ pub fn run_event_loop(config: &Config, cache_dir: &Path) {
     let mut last_art_url: String = String::new();
     for line in reader.lines() {
         let Ok(line) = line else { continue };
-        // When a player exits out
+        // playerctl emits a blank line when a player exits
+        // this will clear up the waybar
         if line.is_empty() { 
             metadata::waybar_print_blank();
             last_art_url.clear();
@@ -56,11 +55,9 @@ pub fn run_event_loop(config: &Config, cache_dir: &Path) {
 
         let parts: Vec<&str> = line.split("|=|").collect();
         let [player, status, artist, title, album, art_url] = parts.as_slice() else { 
-            eprintln!("Format wrong");
+            eprintln!("Format wrong {line}");
             continue 
         };
-
-        println!("{}", status);
 
         // Makes sure we're not downloading the same image
         // or attempting to download nothing
@@ -83,14 +80,17 @@ fn download_url_image(url: &str, cache_dir: &Path) {
     let image_path = cache_dir.join("current.jpg");
     let tmp_path = cache_dir.join("current.jpg.tmp");
 
-    let Ok(response) = reqwest::blocking::get(url) else {
+    let Ok(response) = ureq::get(url).call() else {
         eprintln!("failed to download url image");
         return
     };
 
-    let Ok(bytes) = response.bytes() else {
-        eprintln!("failed to read bytes");
-        return
+    let bytes = match response.into_body().read_to_vec() {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!("failed to read bytes {e}");
+            return
+        }
     };
 
     if let Err(e) = fs::write(&tmp_path, &bytes) {
