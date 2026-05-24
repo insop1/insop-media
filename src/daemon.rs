@@ -5,12 +5,13 @@ use std::process::{Command, Stdio};
 use std::io::{BufRead, BufReader};
 use crate::metadata::{self, Metadata};
 use std::fs;
+use std::os::unix::process::CommandExt;
 // playerctl -p spotify --follow metadata --format '{{playerName}}|=|{{status}}|=|{{artist}}|=|{{title}}|=|{{album}}|=|{{mpris:artUrl}}'
 
 pub fn run_event_loop(config: &Config, cache_dir: &Path) {
     let players = config.players.join(",");
-    let mut child = Command::new("playerctl")
-        .args([
+    let mut command = Command::new("playerctl");
+    command.args([
             "-p",
             &players,
             "--follow",
@@ -19,9 +20,17 @@ pub fn run_event_loop(config: &Config, cache_dir: &Path) {
             "{{playerName}}|=|{{status}}|=|{{artist}}|=|{{title}}|=|{{album}}|=|{{mpris:artUrl}}"
             ])
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .expect("playerctl not found");
+        .stderr(Stdio::null());
+
+    // kills child if parent exits abruptly
+    unsafe {
+        command.pre_exec(|| {
+            libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM);
+            Ok(())
+        });
+    }
+
+    let mut child = command.spawn().expect("playerctl not found");
 
     let stdout = child.stdout.take().expect("failed to take stdout");
     let reader = BufReader::new(stdout);
@@ -41,7 +50,7 @@ pub fn run_event_loop(config: &Config, cache_dir: &Path) {
     } else { 
         None 
     };
-               
+
     let mut last_art_url: String = String::new();
     for line in reader.lines() {
         let Ok(line) = line else { continue };
@@ -72,8 +81,6 @@ pub fn run_event_loop(config: &Config, cache_dir: &Path) {
         let metadata = Metadata::new(player, status, artist, title, album, art_url);
         metadata.waybar_print();
     }
-
-    let _ = child.wait();
 }
 
 fn download_url_image(url: &str, cache_dir: &Path) {
