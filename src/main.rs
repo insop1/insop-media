@@ -26,7 +26,7 @@ fn main() {
     let args = Cli::parse();
 
     let home = PathBuf::from(std::env::var("HOME").expect("HOME not set"));
-    let config_path = home.join(".config/waybar/scripts/insop-media/config.json");
+    let config_path = home.join(".config/insop-media/config.json");
     let cache_dir = home.join(".cache/insop-media");
 
     fs::create_dir_all(&cache_dir).expect("failed to create cache dir");
