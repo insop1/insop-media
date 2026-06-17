@@ -78,7 +78,7 @@ pub fn run_event_loop(config: &Config, cache_dir: &Path) {
             }
         }
         
-        let metadata = Metadata::new(player, status, artist, title, album, art_url);
+        let metadata = Metadata::new(player, status, artist, title, album, art_url, config);
         metadata.waybar_print();
     }
 }
